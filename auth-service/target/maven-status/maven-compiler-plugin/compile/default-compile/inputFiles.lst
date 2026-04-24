@@ -1,0 +1,16 @@
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/AuthServiceApplication.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/controller/AuthController.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/dto/LoginRequestDTO.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/dto/LoginResponseDTO.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/dto/RegisterRequestDTO.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/dto/UserResponseDTO.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/entity/Role.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/entity/User.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/exception/GlobalExceptionHandler.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/repository/UserRepository.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/security/JwtAuthenticationFilter.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/security/JwtTokenProvider.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/security/SecurityConfig.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/service/AuthService.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/service/CustomUserDetailsService.java
+/home/puc0/ProyectosVS/ClassFlow-Back/auth-service/src/main/java/auth_service/service/UserService.java

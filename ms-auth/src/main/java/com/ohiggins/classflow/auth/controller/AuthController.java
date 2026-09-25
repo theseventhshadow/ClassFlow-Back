@@ -1,7 +1,9 @@
 package com.ohiggins.classflow.auth.controller;
 
 import com.ohiggins.classflow.auth.dto.*;
+import com.ohiggins.classflow.auth.entity.User;
 import com.ohiggins.classflow.auth.service.AuthService;
+import com.ohiggins.classflow.auth.service.ExternalIdentityService;
 import com.ohiggins.classflow.auth.service.PasswordResetService;
 import com.ohiggins.classflow.auth.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -29,6 +32,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserService userService;
     private final PasswordResetService passwordResetService;
+    private final ExternalIdentityService externalIdentityService;
 
     /**
      * Autentica un usuario y devuelve un token JWT.
@@ -127,6 +131,16 @@ public class AuthController {
         @ApiResponse(responseCode = "404", description = "Perfil interno no encontrado")
     })
     public ResponseEntity<UserResponseDTO> getCurrentUser(Authentication authentication) {
+        if (authentication.getPrincipal() instanceof Jwt jwt) {
+            String tenantId = jwt.getClaimAsString("tid");
+            String email = jwt.getClaimAsString("preferred_username");
+            if (email == null) {
+                email = jwt.getClaimAsString("email");
+            }
+            User user = externalIdentityService.resolveExistingUser(
+                    "ENTRA", tenantId, jwt.getSubject(), email);
+            return ResponseEntity.ok(userService.convertToDTO(user));
+        }
         return ResponseEntity.ok(userService.findByEmail(authentication.getName()));
     }
 
@@ -191,22 +205,6 @@ public class AuthController {
     @ApiResponse(responseCode = "200", description = "Lista de estudiantes asignados al apoderado")
     public ResponseEntity<List<UserResponseDTO>> getStudentsByGuardian(@PathVariable Long guardianId) {
         return ResponseEntity.ok(userService.findByGuardianId(guardianId));
-    }
-
-    /**
-     * Obtiene el usuario autenticado a partir del token.
-     *
-     * @param token encabezado Authorization con el token.
-     * @return respuesta HTTP con los datos del usuario actual.
-     */
-    @GetMapping("/me")
-    @Operation(summary = "Obtener usuario autenticado", description = "Retorna los datos del usuario dueño del token")
-    @ApiResponse(responseCode = "200", description = "Datos del usuario actual")
-    public ResponseEntity<UserResponseDTO> getCurrentUser(@RequestHeader("Authorization") String token) {
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7);
-        }
-        return ResponseEntity.ok(authService.validateToken(token));
     }
 
     /**

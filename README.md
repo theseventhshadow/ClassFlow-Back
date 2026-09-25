@@ -12,6 +12,25 @@ Para la interfaz de usuario, revisa el **Frontend** aquí:
 
 Ambos proyectos son necesarios para ejecutar ClassFlow completo.
 
+Ejecución conjunta con el frontend
+-----------------------------------
+Para que `docker-compose.yml` pueda construir la imagen del frontend, clona ambos repositorios como carpetas hermanas:
+
+```text
+ClassFlow/
+├── backend/
+└── frontend/
+```
+
+```bash
+git clone https://github.com/theseventhshadow/ClassFlow-Back.git backend
+git clone https://github.com/theseventhshadow/ClassFlow-Front.git frontend
+cd backend
+docker compose up --build
+```
+
+El `docker-compose.yml` utiliza `../frontend` como contexto de construcción del frontend.
+
 Arquitectura y servicios
 ------------------------
 - [api-gateway](api-gateway/README.md) (puerto 8080): API Gateway (Spring Cloud Gateway).

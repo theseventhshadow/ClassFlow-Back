@@ -31,6 +31,34 @@ public class ExternalIdentityService {
                 normalizeProvider(provider), tenantId, externalSubject);
     }
 
+    /**
+     * Resuelve un usuario existente a partir de una identidad externa.
+     * Si la identidad aun no esta vinculada, intenta asociarla por correo.
+     */
+    @Transactional
+    public User resolveExistingUser(
+            String provider,
+            String tenantId,
+            String externalSubject,
+            String email) {
+        Optional<UserIdentity> identity = findIdentity(provider, tenantId, externalSubject);
+        if (identity.isPresent()) {
+            return userRepository.findById(identity.get().getUserId())
+                    .orElseThrow(() -> new IllegalArgumentException("El usuario vinculado no existe."));
+        }
+
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("La identidad no esta vinculada y no contiene un correo.");
+        }
+
+        User user = userRepository.findByEmail(email.trim())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existe un usuario interno para la identidad externa."));
+
+        linkIdentity(user.getId(), provider, tenantId, externalSubject);
+        return user;
+    }
+
     @Transactional
     public UserIdentity linkIdentity(
             Long userId,

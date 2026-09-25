@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -110,6 +111,23 @@ public class AuthController {
             token = token.substring(7);
         }
         return ResponseEntity.ok(authService.validateToken(token));
+    }
+
+    /**
+     * Devuelve el perfil interno correspondiente a la autenticacion actual.
+     *
+     * @param authentication identidad resuelta por Spring Security.
+     * @return perfil interno del usuario autenticado.
+     */
+    @GetMapping("/me")
+    @Operation(summary = "Obtener usuario actual", description = "Devuelve el perfil interno del usuario autenticado")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Usuario autenticado"),
+        @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+        @ApiResponse(responseCode = "404", description = "Perfil interno no encontrado")
+    })
+    public ResponseEntity<UserResponseDTO> getCurrentUser(Authentication authentication) {
+        return ResponseEntity.ok(userService.findByEmail(authentication.getName()));
     }
 
     /**

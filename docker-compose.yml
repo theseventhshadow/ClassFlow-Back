@@ -129,7 +129,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=${GATEWAY_SPRING_PROFILES_ACTIVE:-docker}
       - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       - bff
@@ -145,7 +145,7 @@ services:
     build: ./bff
     image: bff:local
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=${BFF_SPRING_PROFILES_ACTIVE:-docker}
       - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       - ms-auth

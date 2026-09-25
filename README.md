@@ -189,6 +189,20 @@ docker compose up --build
 
 Usar el perfil `docker` (ya configurado en `docker-compose.yml`) que hace que cada servicio apunte a los nombres de servicio DB y a los hosts internos.
 
+Preparacion para Microsoft Entra ID
+-----------------------------------
+El modo local sigue siendo el predeterminado. Para preparar una ejecución con tokens de Microsoft Entra ID, completa `.env` a partir de `.env.example` y activa el perfil sólo en el gateway y el BFF:
+
+```bash
+GATEWAY_SPRING_PROFILES_ACTIVE=docker,entra \
+BFF_SPRING_PROFILES_ACTIVE=docker,entra \
+ENTRA_ISSUER_URI=https://login.microsoftonline.com/<TENANT_ID>/v2.0 \
+ENTRA_API_AUDIENCE=<API_CLIENT_ID> \
+docker compose up --build
+```
+
+El perfil `entra` valida firma, issuer, expiración y audience del access token usando las claves públicas de Microsoft. Todavía se debe configurar el cliente MSAL del frontend y el registro de aplicaciones en Entra antes de activar este modo en un entorno compartido.
+
 Bases de datos y migraciones
 ---------------------------
 - En desarrollo los servicios usan H2 en memoria. En Docker se usan contenedores Postgres dedicados por servicio (p. ej. `auth-db`).

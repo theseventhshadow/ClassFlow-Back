@@ -17,6 +17,11 @@ public interface UserIdentityRepository extends JpaRepository<UserIdentity, Long
 
     List<UserIdentity> findByUserId(Long userId);
 
+    Optional<UserIdentity> findByUserIdAndProviderAndTenantId(
+            Long userId,
+            String provider,
+            String tenantId);
+
     boolean existsByProviderAndTenantIdAndExternalSubject(
             String provider,
             String tenantId,

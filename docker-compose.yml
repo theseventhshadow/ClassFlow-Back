@@ -138,11 +138,6 @@ services:
       - ms-assistance
       - ms-message
       - ms-notification
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - classflow-back-net
 
@@ -158,11 +153,6 @@ services:
       - ms-assistance
       - ms-message
       - ms-notification
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - classflow-back-net
 
@@ -177,11 +167,6 @@ services:
     depends_on:
       auth-db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - classflow-back-net
 
@@ -194,11 +179,6 @@ services:
     depends_on:
       academic-db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - classflow-back-net
 
@@ -211,11 +191,6 @@ services:
     depends_on:
       assistance-db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - classflow-back-net
 
@@ -228,11 +203,6 @@ services:
     depends_on:
       message-db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - classflow-back-net
 
@@ -251,11 +221,6 @@ services:
     depends_on:
       notification-db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - classflow-back-net
 

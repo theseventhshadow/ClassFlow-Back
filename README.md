@@ -4,32 +4,17 @@ Sobre el Proyecto
 -------
 Proyecto backend compuesto por microservicios Spring Boot para gestionar funcionalidades de un sistema escolar (autenticación, académico, asistencia, mensajería, notificaciones, gateway y BFF). Orquestado con `docker-compose` para despliegue local mediante contenedores PostgreSQL por servicio.
 
-Proyecto Relacionado
--------------------
-Este repositorio contiene el **Backend**. 
-Para la interfaz de usuario, revisa el **Frontend** aquí:
-[ClassFlow-Front](https://github.com/theseventhshadow/ClassFlow-Front)
-
-Ambos proyectos son necesarios para ejecutar ClassFlow completo.
+Frontend
+--------
+La carpeta `frontend/` contiene la SPA React/Vite integrada con Microsoft Entra ID mediante MSAL.
 
 Ejecución conjunta con el frontend
 -----------------------------------
-Para que `docker-compose.yml` pueda construir la imagen del frontend, clona ambos repositorios como carpetas hermanas:
-
-```text
-ClassFlow/
-├── backend/
-└── frontend/
-```
+Completa `.env` a partir de `.env.example`, incluyendo `VITE_ENTRA_CLIENT_ID` con el client ID de la aplicación SPA registrada en Entra, y levanta el stack desde la raíz:
 
 ```bash
-git clone https://github.com/theseventhshadow/ClassFlow-Back.git backend
-git clone https://github.com/theseventhshadow/ClassFlow-Front.git frontend
-cd backend
 docker compose up --build
 ```
-
-El `docker-compose.yml` utiliza `../frontend` como contexto de construcción del frontend.
 
 Arquitectura y servicios
 ------------------------
@@ -187,21 +172,19 @@ Levanta todos los servicios y bases de datos PostgreSQL definidos en `docker-com
 docker compose up --build
 ```
 
-Usar el perfil `docker` (ya configurado en `docker-compose.yml`) que hace que cada servicio apunte a los nombres de servicio DB y a los hosts internos.
+Sin un perfil activo, el gateway, BFF y `ms-auth` usan Entra por defecto. Compose activa `docker,entra` en esos servicios; los demás microservicios conservan `docker` y validan el access token a través de `ms-auth`.
 
 Preparacion para Microsoft Entra ID
 -----------------------------------
-El modo local sigue siendo el predeterminado. Para preparar una ejecución con tokens de Microsoft Entra ID, completa `.env` a partir de `.env.example` y activa el perfil sólo en el gateway y el BFF:
+Para ejecutar el backend con Microsoft Entra ID, configura `.env` a partir de `.env.example`. Compose activa los perfiles Entra por defecto en gateway, BFF y `ms-auth`; el issuer y audience son obligatorios también al ejecutar esos servicios directamente:
 
 ```bash
-GATEWAY_SPRING_PROFILES_ACTIVE=docker,entra \
-BFF_SPRING_PROFILES_ACTIVE=docker,entra \
-ENTRA_ISSUER_URI=https://login.microsoftonline.com/<TENANT_ID>/v2.0 \
-ENTRA_API_AUDIENCE=<API_CLIENT_ID> \
 docker compose up --build
 ```
 
-El perfil `entra` valida firma, issuer, expiración y audience del access token usando las claves públicas de Microsoft. Todavía se debe configurar el cliente MSAL del frontend y el registro de aplicaciones en Entra antes de activar este modo en un entorno compartido.
+El perfil `entra` valida firma, issuer, expiración y audience del access token usando las claves públicas de Microsoft. El frontend obtiene el access token mediante MSAL y solicita el scope configurado en `VITE_ENTRA_API_SCOPE`.
+
+El modo local solo se activa mediante una selección explícita del perfil `local`; no es el modo predeterminado.
 
 Bases de datos y migraciones
 ---------------------------
@@ -211,7 +194,7 @@ Bases de datos y migraciones
 Endpoints principales (resumen)
 ------------------------------
 
-- Auth (`/api/auth`): `POST /login`, `POST /register`, `GET /validate`, `GET /users/{id}`, `PUT /users/{id}`, `POST /change-password`, `GET /me`.
+- Auth (`/api/auth`): en modo local, `POST /login`, `POST /register`, `GET /validate` y gestion de usuarios; en modo Entra, `GET /me` y `GET /validate` aceptan access tokens de Microsoft. Login, registro y cambio de contrasena locales quedan deshabilitados con Entra.
 - Academic (`/api/courses`, `/api/subjects`, `/api/evaluations`, `/api/grades`): CRUD estándar (GET, POST, PUT, DELETE) y consultas por relaciones (ej. `/api/subjects/course/{courseId}`).
 - Assistance (`/api/attendance`, `/api/annotations`): registro y consultas por estudiante, curso y fecha.
 - Message (`/api/messages`, `/api/announcements`): envío, listado, marcar como leído, anuncios activos.

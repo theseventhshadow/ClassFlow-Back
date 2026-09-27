@@ -11,7 +11,7 @@ El backend mantiene dos modos de seguridad:
 - `local`: login y JWT propio para desarrollo y transicion.
 - `entra`: resource server que valida access tokens de Microsoft Entra ID.
 
-El modo `local` sigue siendo el predeterminado. No se debe activar `entra` en un entorno compartido hasta completar los valores reales de Entra y probar la integracion.
+Sin un perfil activo, el API Gateway, BFF y `ms-auth` usan Entra por defecto. Docker Compose y Kubernetes activan `docker,entra` en esos servicios; el modo `local` requiere seleccion explicita. El frontend MSAL se mantiene en un repositorio separado y debe configurarse para solicitar un access token de esta API.
 
 ## Arquitectura esperada
 
@@ -90,16 +90,18 @@ Con autenticacion local usa el usuario autenticado actual. Con Entra usa `oid`, 
 
 En `ms-auth`, el perfil `entra` deshabilita login, registro, recuperacion y cambio de contrasena locales.
 
-## Variables pendientes
+## Variables de configuracion
 
-Completar en el entorno de despliegue, nunca en Git:
+Configurar en `.env` para Compose o en la ConfigMap de Kubernetes:
 
 ```env
 ENTRA_ISSUER_URI=https://login.microsoftonline.com/<TENANT_ID>/v2.0
 ENTRA_API_AUDIENCE=<API_CLIENT_ID>
 ```
 
-Para activar los perfiles en Docker Compose:
+La SPA debe configurarse en su propio proyecto con su `FRONTEND_CLIENT_ID`, el scope `api://<API_CLIENT_ID>/access_as_user` y una redirect URI registrada para ese frontend. El backend no necesita el client ID de la SPA.
+
+Compose activa los perfiles Entra por defecto. Para sobrescribirlos explicitamente:
 
 ```env
 GATEWAY_SPRING_PROFILES_ACTIVE=docker,entra
@@ -107,21 +109,17 @@ BFF_SPRING_PROFILES_ACTIVE=docker,entra
 MS_AUTH_SPRING_PROFILES_ACTIVE=docker,entra
 ```
 
-Importante: revisar `docker-compose.yml`. `ms-auth` debe recibir `SPRING_PROFILES_ACTIVE=docker,entra`; si el Compose aun lo deja fijo en `docker`, cambiarlo a una variable equivalente a:
-
-```yaml
-- SPRING_PROFILES_ACTIVE=${MS_AUTH_SPRING_PROFILES_ACTIVE:-docker}
-```
+Los tres servicios reciben `ENTRA_ISSUER_URI` y `ENTRA_API_AUDIENCE`. `ms-auth` expone `/api/auth/me` para obtener el perfil local y `/api/auth/validate` para que los microservicios validen el access token de Entra y resuelvan el usuario interno.
 
 ## Tareas del equipo de Entra ID
 
 1. Registrar la API de ClassFlow en Microsoft Entra.
 2. Configurar el Application ID URI.
 3. Exponer el scope `access_as_user`.
-4. Registrar el frontend como SPA.
-5. Agregar la redirect URI de desarrollo y produccion.
+4. Registrar el frontend como SPA y configurar `http://localhost:3000` como redirect URI de desarrollo.
 6. Crear App Roles para `Administrator`, `Teacher`, `Student` y `Guardian`.
 7. Asignar usuarios o grupos a esos roles.
+7. Configurar `email` o `preferred_username` como optional claim del access token de la API. `ms-auth` lo necesita para vincular por primera vez el `oid`/`tid` con el correo de un usuario interno existente.
 8. Entregar al equipo frontend y backend:
    - `TENANT_ID`.
    - `FRONTEND_CLIENT_ID`.
@@ -167,7 +165,7 @@ El modo local se mantiene para desarrollo:
 docker compose up --build
 ```
 
-Para Entra, completar `.env` y activar los tres perfiles `docker,entra` antes de levantar los servicios.
+Para Entra, completar `.env` con el client ID SPA y el scope de API. Para ejecutar un servicio Java directamente, definir `ENTRA_ISSUER_URI` y `ENTRA_API_AUDIENCE` en el entorno.
 
 ## Decisiones que no deben cambiarse sin revisar
 

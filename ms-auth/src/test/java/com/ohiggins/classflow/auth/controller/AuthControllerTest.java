@@ -2,9 +2,11 @@ package com.ohiggins.classflow.auth.controller;
 
 import com.ohiggins.classflow.auth.dto.*;
 import com.ohiggins.classflow.auth.service.AuthService;
+import com.ohiggins.classflow.auth.service.ExternalIdentityService;
 import com.ohiggins.classflow.auth.service.PasswordResetService;
 import com.ohiggins.classflow.auth.service.UserService;
 import com.ohiggins.classflow.auth.security.JwtTokenProvider;
+import com.ohiggins.classflow.auth.security.JwtAuthenticationFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,7 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -32,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@ActiveProfiles("local")
 @DisplayName("AuthController Tests")
 class AuthControllerTest {
 
@@ -51,7 +56,13 @@ class AuthControllerTest {
     private JwtTokenProvider jwtTokenProvider;
 
     @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
     private PasswordResetService passwordResetService;
+
+    @MockitoBean
+    private ExternalIdentityService externalIdentityService;
 
     private LoginResponseDTO loginResponseDTO;
     private UserResponseDTO userResponseDTO;
@@ -210,13 +221,13 @@ class AuthControllerTest {
     @Test
     @DisplayName("Should get current user")
     void testGetCurrentUser() throws Exception {
-        when(authService.validateToken("jwt-token")).thenReturn(userResponseDTO);
+        when(userService.findByEmail("juan@example.com")).thenReturn(userResponseDTO);
 
         mockMvc.perform(get("/api/auth/me")
-                        .header("Authorization", "Bearer jwt-token"))
+                        .principal(new UsernamePasswordAuthenticationToken("juan@example.com", null)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email", equalTo("juan@example.com")));
 
-        verify(authService, times(1)).validateToken("jwt-token");
+        verify(userService, times(1)).findByEmail("juan@example.com");
     }
 }

@@ -129,7 +129,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=${GATEWAY_SPRING_PROFILES_ACTIVE:-docker}
+      - SPRING_PROFILES_ACTIVE=${GATEWAY_SPRING_PROFILES_ACTIVE:-docker,entra}
+      - ENTRA_ISSUER_URI=${ENTRA_ISSUER_URI:?Definir ENTRA_ISSUER_URI en backend/.env}
+      - ENTRA_API_AUDIENCE=${ENTRA_API_AUDIENCE:?Definir ENTRA_API_AUDIENCE en backend/.env}
       - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       - bff
@@ -145,7 +147,9 @@ services:
     build: ./bff
     image: bff:local
     environment:
-      - SPRING_PROFILES_ACTIVE=${BFF_SPRING_PROFILES_ACTIVE:-docker}
+      - SPRING_PROFILES_ACTIVE=${BFF_SPRING_PROFILES_ACTIVE:-docker,entra}
+      - ENTRA_ISSUER_URI=${ENTRA_ISSUER_URI:?Definir ENTRA_ISSUER_URI en backend/.env}
+      - ENTRA_API_AUDIENCE=${ENTRA_API_AUDIENCE:?Definir ENTRA_API_AUDIENCE en backend/.env}
       - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       - ms-auth
@@ -160,7 +164,9 @@ services:
     build: ./ms-auth
     image: ms-auth:local
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=${MS_AUTH_SPRING_PROFILES_ACTIVE:-docker,entra}
+      - ENTRA_ISSUER_URI=${ENTRA_ISSUER_URI:?Definir ENTRA_ISSUER_URI en backend/.env}
+      - ENTRA_API_AUDIENCE=${ENTRA_API_AUDIENCE:?Definir ENTRA_API_AUDIENCE en backend/.env}
       - SENTRY_DSN=${SENTRY_DSN:-}
       - JWT_SECRET=${JWT_SECRET:?Definir JWT_SECRET en backend/.env (openssl rand -hex 32)}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:?Definir INTERNAL_API_KEY en backend/.env (openssl rand -hex 32)}

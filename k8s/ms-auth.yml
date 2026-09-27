@@ -23,6 +23,8 @@ spec:
             - configMapRef:
                 name: classflow-config
           env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker,entra"
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:

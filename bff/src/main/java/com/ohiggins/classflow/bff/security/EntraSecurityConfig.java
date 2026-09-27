@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
 import java.util.Collection;
@@ -72,14 +73,19 @@ public class EntraSecurityConfig {
     private ReactiveJwtAuthenticationConverterAdapter jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            Object scopes = jwt.getClaims().get("scp");
-            if (!(scopes instanceof String scopeValue)) {
-                return List.<GrantedAuthority>of();
+            List<GrantedAuthority> authorities = new java.util.ArrayList<>();
+            List<String> roles = jwt.getClaimAsStringList("roles");
+            if (roles != null) {
+                roles.forEach(role -> authorities.add(new SimpleGrantedAuthority(
+                        role.startsWith("ROLE_") ? role : "ROLE_" + role)));
             }
-            return java.util.Arrays.stream(scopeValue.split(" "))
-                    .filter(scope -> !scope.isBlank())
-                    .map(scope -> (GrantedAuthority) new org.springframework.security.core.authority.SimpleGrantedAuthority("SCOPE_" + scope))
-                    .toList();
+            String scopeValue = jwt.getClaimAsString("scp");
+            if (scopeValue != null) {
+                java.util.Arrays.stream(scopeValue.split(" "))
+                        .filter(scope -> !scope.isBlank())
+                        .forEach(scope -> authorities.add(new SimpleGrantedAuthority("SCOPE_" + scope)));
+            }
+            return authorities;
         });
         return new ReactiveJwtAuthenticationConverterAdapter(converter);
     }

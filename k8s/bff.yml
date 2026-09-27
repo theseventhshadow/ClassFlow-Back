@@ -22,6 +22,9 @@ spec:
           envFrom:
             - configMapRef:
                 name: classflow-config
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker,entra"
           readinessProbe:
             tcpSocket:
               port: 8086

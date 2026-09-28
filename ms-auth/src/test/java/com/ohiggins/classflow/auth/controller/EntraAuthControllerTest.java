@@ -112,6 +112,24 @@ class EntraAuthControllerTest {
     }
 
     @Test
+    void unlinkedMicrosoftAccountIsForbidden() {
+        Jwt jwt = Jwt.withTokenValue("token")
+                .header("alg", "none")
+                .claim("tid", "tenant-id")
+                .claim("oid", "object-id")
+                .claim("email", "unknown@classflow.cl")
+                .build();
+        JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt);
+        when(externalIdentityService.resolveExistingUser("ENTRA", "tenant-id", "object-id", "unknown@classflow.cl"))
+                .thenThrow(new IllegalArgumentException("No existe un usuario interno para la identidad externa."));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class, () -> controller.getCurrentUser(authentication));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+    }
+
+    @Test
     void disabledInternalUserCannotUseEntraProfile() {
         Jwt jwt = Jwt.withTokenValue("token")
                 .header("alg", "none")

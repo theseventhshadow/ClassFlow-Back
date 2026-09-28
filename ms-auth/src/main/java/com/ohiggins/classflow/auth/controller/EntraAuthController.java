@@ -73,7 +73,13 @@ public class EntraAuthController {
             email = jwt.getClaimAsString("email");
         }
 
-        User user = externalIdentityService.resolveExistingUser("ENTRA", tenantId, objectId, email);
+        User user;
+        try {
+            user = externalIdentityService.resolveExistingUser("ENTRA", tenantId, objectId, email);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "La cuenta de Microsoft no está habilitada en ClassFlow.");
+        }
         if (!Boolean.TRUE.equals(user.getActive())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "La cuenta ClassFlow está desactivada.");
         }

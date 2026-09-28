@@ -116,6 +116,7 @@ Los tres servicios reciben `ENTRA_ISSUER_URI` y `ENTRA_API_AUDIENCE`. `ms-auth` 
 1. Registrar la API de ClassFlow en Microsoft Entra.
 2. Configurar el Application ID URI.
 3. Exponer el scope `access_as_user`.
+   En el manifiesto de la app de la API, definir `"accessTokenAcceptedVersion": 2` (o `requestedAccessTokenVersion: 2` en el manifiesto nuevo). Sin esto Entra emite tokens v1 con issuer `https://sts.windows.net/<TENANT_ID>/`, que no coincide con `ENTRA_ISSUER_URI` (`.../v2.0`) y todo responde `401`.
 4. Registrar el frontend como SPA y configurar `http://localhost:3000` como redirect URI de desarrollo.
 6. Crear App Roles para `Administrator`, `Teacher`, `Student` y `Guardian`.
 7. Asignar usuarios o grupos a esos roles.

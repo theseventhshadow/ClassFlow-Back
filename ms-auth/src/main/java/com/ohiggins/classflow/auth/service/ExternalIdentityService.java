@@ -51,7 +51,7 @@ public class ExternalIdentityService {
             throw new IllegalArgumentException("La identidad no esta vinculada y no contiene un correo.");
         }
 
-        User user = userRepository.findByEmail(email.trim())
+        User user = userRepository.findByEmailIgnoreCase(email.trim())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No existe un usuario interno para la identidad externa."));
 

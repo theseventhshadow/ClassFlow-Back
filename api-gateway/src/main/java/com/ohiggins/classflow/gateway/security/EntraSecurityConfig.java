@@ -59,9 +59,12 @@ public class EntraSecurityConfig {
     public ReactiveJwtDecoder entraJwtDecoder() {
         NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withIssuerLocation(issuerUri).build();
         OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer(issuerUri);
+        // Los tokens v2 traen el client ID como aud; los v1 traen el Application ID URI (api://...).
+        String clientId = audience.startsWith("api://") ? audience.substring("api://".length()) : audience;
+        List<String> acceptedAudiences = List.of(clientId, "api://" + clientId);
         OAuth2TokenValidator<Jwt> audienceValidator = jwt -> {
             Collection<String> audiences = jwt.getAudience();
-            if (audiences != null && audiences.contains(audience)) {
+            if (audiences != null && audiences.stream().anyMatch(acceptedAudiences::contains)) {
                 return OAuth2TokenValidatorResult.success();
             }
             return OAuth2TokenValidatorResult.failure(new OAuth2Error(

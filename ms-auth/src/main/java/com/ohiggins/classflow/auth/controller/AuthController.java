@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,11 +22,13 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Expone los endpoints REST para autenticacion y gestion de usuarios.
+ * Expone los endpoints REST para autenticacion y gestion de usuarios en modo local.
+ * Con el perfil entra, EntraAuthController atiende /me, /validate y las consultas de usuarios.
  */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Profile("!entra")
 @Tag(name = "Autenticación", description = "Login, registro, validación de token y gestión de usuarios")
 public class AuthController {
 

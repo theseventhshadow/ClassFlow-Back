@@ -2,6 +2,7 @@ package com.ohiggins.classflow.assistance.controller;
 
 import com.ohiggins.classflow.assistance.dto.AnnotationDTO;
 import com.ohiggins.classflow.assistance.dto.AnnotationRequestDTO;
+import com.ohiggins.classflow.assistance.security.AuthenticatedUser;
 import com.ohiggins.classflow.assistance.service.AnnotationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -77,6 +79,12 @@ public class AnnotationController {
         @ApiResponse(responseCode = "400", description = "Datos inválidos")
     })
     public ResponseEntity<AnnotationDTO> create(@Valid @RequestBody AnnotationRequestDTO request) {
+        // El autor es siempre el docente autenticado: no se puede firmar a nombre de otro.
+        if (SecurityContextHolder.getContext().getAuthentication() != null
+                && SecurityContextHolder.getContext().getAuthentication().getPrincipal() instanceof AuthenticatedUser user
+                && !"ADMINISTRATOR".equals(user.role())) {
+            request.setTeacherId(user.id());
+        }
         return new ResponseEntity<>(annotationService.create(request), HttpStatus.CREATED);
     }
 

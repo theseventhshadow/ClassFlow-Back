@@ -44,6 +44,12 @@ internal:
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
 
+# Con ambos valores definidos, el modo local tambien acepta access tokens de Microsoft Entra
+# (login hibrido). Vacios: solo login local. El perfil entra los define como obligatorios.
+entra:
+  issuer-uri: ${ENTRA_ISSUER_URI:}
+  audience: ${ENTRA_API_AUDIENCE:}
+
 password-reset:
   expiration-minutes: ${PASSWORD_RESET_EXPIRATION_MINUTES:30}
 

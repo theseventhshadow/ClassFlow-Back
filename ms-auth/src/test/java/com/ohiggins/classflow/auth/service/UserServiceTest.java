@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -213,5 +214,44 @@ class UserServiceTest {
 
         verify(userRepository, times(1)).findById(999L);
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Should list only students of a course, sorted by last name")
+    void testFindUsersByCourseAndRole() {
+        User guardianInCourse = new User();
+        guardianInCourse.setId(2L);
+        guardianInCourse.setFirstName("Ana");
+        guardianInCourse.setLastName("Soto");
+        guardianInCourse.setRole(Role.GUARDIAN);
+        guardianInCourse.setCourse("1A");
+        User otherStudent = new User();
+        otherStudent.setId(3L);
+        otherStudent.setFirstName("Luis");
+        otherStudent.setLastName("Araya");
+        otherStudent.setRole(Role.STUDENT);
+        otherStudent.setCourse("1A");
+        when(userRepository.findByCourse("1A")).thenReturn(List.of(user, guardianInCourse, otherStudent));
+
+        List<UserResponseDTO> result = userService.findUsers("student", "1A");
+
+        assertThat(result).extracting(UserResponseDTO::getId).containsExactly(3L, 1L);
+    }
+
+    @Test
+    @DisplayName("Should reject an unknown role")
+    void testFindUsersWithUnknownRole() {
+        assertThatThrownBy(() -> userService.findUsers("DIRECTOR", null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("Should activate and deactivate a user")
+    void testSetActive() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(userService.setActive(1L, false).getActive()).isFalse();
+        assertThat(userService.setActive(1L, true).getActive()).isTrue();
     }
 }

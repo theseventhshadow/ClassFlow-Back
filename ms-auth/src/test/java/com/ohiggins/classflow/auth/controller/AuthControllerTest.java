@@ -16,14 +16,19 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -229,5 +234,32 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.email", equalTo("juan@example.com")));
 
         verify(userService, times(1)).findByEmail("juan@example.com");
+    }
+
+    @Test
+    @DisplayName("Should validate an Entra token already resolved to the internal user")
+    void testValidateWithEntraToken() throws Exception {
+        when(userService.findByEmail("juan@example.com")).thenReturn(userResponseDTO);
+
+        // Credenciales null: ProviderManager borra el Jwt despues de autenticar.
+        mockMvc.perform(get("/api/auth/validate")
+                        .header("Authorization", "Bearer entra-token")
+                        .principal(new UsernamePasswordAuthenticationToken("juan@example.com", null, List.of())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email", equalTo("juan@example.com")));
+
+        verify(authService, never()).validateToken(any());
+    }
+
+    @Test
+    @DisplayName("Should reject an Entra token without a ClassFlow account")
+    void testGetCurrentUserWithUnlinkedEntraToken() throws Exception {
+        Jwt jwt = Jwt.withTokenValue("entra-token").header("alg", "RS256").claim("tid", "tenant-id").build();
+
+        mockMvc.perform(get("/api/auth/me")
+                        .principal(new JwtAuthenticationToken(jwt, List.of())))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).findByEmail(any());
     }
 }

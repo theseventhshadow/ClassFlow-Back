@@ -1,13 +1,12 @@
 package com.ohiggins.classflow.auth.controller;
 
 import com.ohiggins.classflow.auth.dto.*;
-import com.ohiggins.classflow.auth.entity.User;
 import com.ohiggins.classflow.auth.service.AuthService;
-import com.ohiggins.classflow.auth.service.ExternalIdentityService;
 import com.ohiggins.classflow.auth.service.PasswordResetService;
 import com.ohiggins.classflow.auth.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
+import java.util.Map;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -35,7 +35,6 @@ public class AuthController {
     private final AuthService authService;
     private final UserService userService;
     private final PasswordResetService passwordResetService;
-    private final ExternalIdentityService externalIdentityService;
 
     /**
      * Autentica un usuario y devuelve un token JWT.
@@ -113,7 +112,13 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "Token válido"),
         @ApiResponse(responseCode = "401", description = "Token inválido o expirado")
     })
-    public ResponseEntity<UserResponseDTO> validate(@RequestHeader("Authorization") String token) {
+    public ResponseEntity<UserResponseDTO> validate(
+            @RequestHeader("Authorization") String token, Authentication authentication) {
+        // Spring Security ya autentico el token (local, o de Entra en el login hibrido) y lo resolvio
+        // al usuario interno. No se usa getCredentials(): ProviderManager las borra tras autenticar.
+        if (authentication != null && authentication.isAuthenticated()) {
+            return ResponseEntity.ok(resolveAuthenticatedUser(authentication));
+        }
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
         }
@@ -134,17 +139,58 @@ public class AuthController {
         @ApiResponse(responseCode = "404", description = "Perfil interno no encontrado")
     })
     public ResponseEntity<UserResponseDTO> getCurrentUser(Authentication authentication) {
-        if (authentication.getPrincipal() instanceof Jwt jwt) {
-            String tenantId = jwt.getClaimAsString("tid");
-            String email = jwt.getClaimAsString("preferred_username");
-            if (email == null) {
-                email = jwt.getClaimAsString("email");
-            }
-            User user = externalIdentityService.resolveExistingUser(
-                    "ENTRA", tenantId, jwt.getSubject(), email);
-            return ResponseEntity.ok(userService.convertToDTO(user));
+        return ResponseEntity.ok(resolveAuthenticatedUser(authentication));
+    }
+
+    /**
+     * Perfil interno del usuario autenticado, sea con token local o de Entra. Un token de Entra
+     * sin cuenta ClassFlow habilitada llega con el Jwt como principal (ver EntraUserAuthenticationConverter).
+     */
+    private UserResponseDTO resolveAuthenticatedUser(Authentication authentication) {
+        if (authentication.getPrincipal() instanceof Jwt) {
+            throw new AccessDeniedException("La cuenta de Microsoft no está habilitada en ClassFlow.");
         }
-        return ResponseEntity.ok(userService.findByEmail(authentication.getName()));
+        return userService.findByEmail(authentication.getName());
+    }
+
+    /**
+     * Lista usuarios, opcionalmente filtrados por rol y curso (p. ej. los estudiantes de un curso).
+     *
+     * @param role rol a filtrar (ADMINISTRATOR, TEACHER, STUDENT, GUARDIAN).
+     * @param course nombre del curso a filtrar.
+     * @return respuesta HTTP con los usuarios encontrados.
+     */
+    @GetMapping("/users")
+    @Operation(summary = "Listar usuarios", description = "Filtra por rol y/o curso. Solo docentes y administradores")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Lista de usuarios"),
+        @ApiResponse(responseCode = "400", description = "Rol inexistente"),
+        @ApiResponse(responseCode = "403", description = "Solo docentes y administradores")
+    })
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'TEACHER')")
+    public ResponseEntity<List<UserResponseDTO>> listUsers(
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String course) {
+        return ResponseEntity.ok(userService.findUsers(role, course));
+    }
+
+    /**
+     * Activa o desactiva un usuario.
+     *
+     * @param id identificador del usuario.
+     * @param request cuerpo con el nuevo estado: {"active": true|false}.
+     * @return respuesta HTTP con el usuario actualizado.
+     */
+    @PutMapping("/users/{id}/active")
+    @Operation(summary = "Activar o desactivar usuario")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Estado actualizado"),
+        @ApiResponse(responseCode = "403", description = "Solo administradores")
+    })
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    public ResponseEntity<UserResponseDTO> setUserActive(
+            @PathVariable Long id, @RequestBody Map<String, Boolean> request) {
+        return ResponseEntity.ok(userService.setActive(id, Boolean.TRUE.equals(request.get("active"))));
     }
 
     /**
@@ -177,6 +223,7 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "Usuario encontrado"),
         @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'TEACHER')")
     public ResponseEntity<UserResponseDTO> getUserByEmail(@PathVariable String email) {
         return ResponseEntity.ok(userService.findByEmail(email));
     }
@@ -193,6 +240,7 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "Usuario encontrado"),
         @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'TEACHER')")
     public ResponseEntity<UserResponseDTO> getUserByIdNumber(@PathVariable String idNumber) {
         return ResponseEntity.ok(userService.findByIdNumber(idNumber));
     }
@@ -206,6 +254,7 @@ public class AuthController {
     @GetMapping("/users/guardian/{guardianId}")
     @Operation(summary = "Obtener estudiantes por ID del apoderado")
     @ApiResponse(responseCode = "200", description = "Lista de estudiantes asignados al apoderado")
+    @PreAuthorize("#guardianId == authentication.principal.id or hasAnyRole('ADMINISTRATOR', 'TEACHER')")
     public ResponseEntity<List<UserResponseDTO>> getStudentsByGuardian(@PathVariable Long guardianId) {
         return ResponseEntity.ok(userService.findByGuardianId(guardianId));
     }

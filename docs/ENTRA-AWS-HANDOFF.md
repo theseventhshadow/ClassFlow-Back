@@ -99,6 +99,8 @@ ENTRA_ISSUER_URI=https://login.microsoftonline.com/<TENANT_ID>/v2.0
 ENTRA_API_AUDIENCE=<API_CLIENT_ID>
 ```
 
+El issuer debe coincidir con la version de token que emite la app de la API (claim `ver`). Actualmente la API emite tokens v1, por lo que `.env.example` y la ConfigMap usan `https://sts.windows.net/<TENANT_ID>/` (con la barra final). Si se configura el manifiesto a v2 (ver tareas de Entra), volver a `https://login.microsoftonline.com/<TENANT_ID>/v2.0`.
+
 La SPA debe configurarse en su propio proyecto con su `FRONTEND_CLIENT_ID`, el scope `api://<API_CLIENT_ID>/access_as_user` y una redirect URI registrada para ese frontend. El backend no necesita el client ID de la SPA.
 
 Compose activa los perfiles Entra por defecto. Para sobrescribirlos explicitamente:

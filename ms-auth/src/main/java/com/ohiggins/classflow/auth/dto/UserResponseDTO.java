@@ -38,4 +38,7 @@ public class UserResponseDTO {
 
     @Schema(description = "Estado de la cuenta", example = "true")
     private Boolean active;
+
+    @Schema(description = "Apoderado del estudiante (solo estudiantes)", example = "30")
+    private Long guardianId;
 }

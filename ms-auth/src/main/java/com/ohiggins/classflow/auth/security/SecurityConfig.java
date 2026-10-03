@@ -1,6 +1,8 @@
 package com.ohiggins.classflow.auth.security;
 
+import com.ohiggins.classflow.auth.service.ExternalIdentityService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -12,10 +14,16 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.SupplierJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.util.StringUtils;
 
 /**
  * Configura la seguridad HTTP y los componentes basicos de autenticacion.
@@ -35,6 +43,14 @@ public class SecurityConfig {
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ExternalIdentityService externalIdentityService;
+
+    /** Con issuer y audience de Entra definidos, el modo local tambien acepta tokens de Microsoft (login hibrido). */
+    @Value("${entra.issuer-uri:}")
+    private String entraIssuerUri;
+
+    @Value("${entra.audience:}")
+    private String entraAudience;
 
     /**
      * Define la cadena de filtros y reglas de acceso.
@@ -56,7 +72,29 @@ public class SecurityConfig {
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
+        if (StringUtils.hasText(entraIssuerUri) && StringUtils.hasText(entraAudience)) {
+            // Lazy: el discovery de Entra se resuelve en el primer token, no al arrancar.
+            JwtDecoder entraDecoder = new SupplierJwtDecoder(
+                    () -> EntraSecurityConfig.buildEntraJwtDecoder(entraIssuerUri, entraAudience));
+            http.oauth2ResourceServer(oauth2 -> oauth2
+                    .bearerTokenResolver(skipWhenAlreadyAuthenticated())
+                    .jwt(jwt -> jwt
+                            .decoder(entraDecoder)
+                            .jwtAuthenticationConverter(new EntraUserAuthenticationConverter(externalIdentityService))));
+        }
+
         return http.build();
+    }
+
+    /**
+     * JwtAuthenticationFilter corre antes y autentica los tokens locales; en ese caso no se
+     * intenta validarlos de nuevo como tokens de Entra (fallarian y responderian 401).
+     */
+    private BearerTokenResolver skipWhenAlreadyAuthenticated() {
+        DefaultBearerTokenResolver delegate = new DefaultBearerTokenResolver();
+        return request -> SecurityContextHolder.getContext().getAuthentication() != null
+                ? null
+                : delegate.resolve(request);
     }
 
     /**

@@ -2,11 +2,13 @@ package com.ohiggins.classflow.auth.service;
 
 import com.ohiggins.classflow.auth.dto.UserResponseDTO;
 import com.ohiggins.classflow.auth.dto.UpdateUserRequestDTO;
+import com.ohiggins.classflow.auth.entity.Role;
 import com.ohiggins.classflow.auth.entity.User;
 import com.ohiggins.classflow.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -55,14 +57,38 @@ public class UserService {
     }
 
     /**
-     * Busca usuarios por rol.
+     * Lista usuarios, opcionalmente filtrados por rol y/o curso.
      *
-     * @param role rol a buscar.
-     * @return lista de usuarios convertidos a DTO.
+     * @param role rol (ADMINISTRATOR, TEACHER, STUDENT, GUARDIAN) o null para todos.
+     * @param course nombre del curso o null para todos.
+     * @return usuarios ordenados por apellido y nombre, convertidos a DTO.
+     * @throws IllegalArgumentException si el rol no existe.
      */
-    public List<UserResponseDTO> findAllByRole(String role) {
-        // Implementar según sea necesario
-        throw new UnsupportedOperationException("Method to be implemented - add findByRole in repository");
+    public List<UserResponseDTO> findUsers(String role, String course) {
+        Role roleFilter = role != null && !role.isBlank() ? Role.valueOf(role.trim().toUpperCase()) : null;
+        List<User> users = course != null && !course.isBlank()
+                ? userRepository.findByCourse(course)
+                : roleFilter != null ? userRepository.findByRole(roleFilter) : userRepository.findAll();
+        return users.stream()
+                .filter(user -> roleFilter == null || user.getRole() == roleFilter)
+                .sorted(Comparator.comparing(User::getLastName, Comparator.nullsLast(String::compareToIgnoreCase))
+                        .thenComparing(User::getFirstName, Comparator.nullsLast(String::compareToIgnoreCase)))
+                .map(this::convertToDTO)
+                .toList();
+    }
+
+    /**
+     * Activa o desactiva un usuario.
+     *
+     * @param id identificador del usuario.
+     * @param active nuevo estado.
+     * @return usuario actualizado convertido a DTO.
+     */
+    public UserResponseDTO setActive(Long id, boolean active) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setActive(active);
+        return convertToDTO(userRepository.save(user));
     }
 
     /**
@@ -147,6 +173,7 @@ public class UserService {
                 .role(user.getRole().name())
                 .course(user.getCourse())
                 .active(user.getActive())
+                .guardianId(user.getGuardianId())
                 .build();
     }
 }

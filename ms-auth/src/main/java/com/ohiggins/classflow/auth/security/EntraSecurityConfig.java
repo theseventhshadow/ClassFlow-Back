@@ -16,6 +16,8 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -26,6 +28,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Seguridad para tokens emitidos por Microsoft Entra ID.
@@ -35,6 +40,9 @@ import java.util.List;
 @EnableMethodSecurity
 @Profile("entra")
 public class EntraSecurityConfig {
+
+    private static final Pattern TENANT_ID =
+            Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 
     private final String issuerUri;
     private final String audience;
@@ -66,8 +74,19 @@ public class EntraSecurityConfig {
 
     @Bean
     public JwtDecoder entraJwtDecoder() {
+        return buildEntraJwtDecoder(issuerUri, audience);
+    }
+
+    /**
+     * Decoder que valida firma, issuer y audience de un access token de Entra ID.
+     * Lo reutiliza SecurityConfig para el login hibrido (local + Entra).
+     */
+    static JwtDecoder buildEntraJwtDecoder(String issuerUri, String audience) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
-        OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer(issuerUri);
+        Set<String> acceptedIssuers = acceptedIssuers(issuerUri);
+        OAuth2TokenValidator<Jwt> issuerValidator = new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefault(),
+                new JwtClaimValidator<String>(JwtClaimNames.ISS, acceptedIssuers::contains));
         // Los tokens v2 traen el client ID como aud; los v1 traen el Application ID URI (api://...).
         String clientId = audience.startsWith("api://") ? audience.substring("api://".length()) : audience;
         List<String> acceptedAudiences = List.of(clientId, "api://" + clientId);
@@ -81,6 +100,24 @@ public class EntraSecurityConfig {
         };
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(issuerValidator, audienceValidator));
         return decoder;
+    }
+
+    /**
+     * Entra emite el mismo tenant con dos issuers segun la version del access token
+     * (accessTokenAcceptedVersion de la API): v1 = sts.windows.net/{tid}/ y
+     * v2 = login.microsoftonline.com/{tid}/v2.0. Se aceptan ambos para el tenant configurado.
+     */
+    static Set<String> acceptedIssuers(String issuerUri) {
+        Matcher matcher = TENANT_ID.matcher(issuerUri);
+        if (!matcher.find()) {
+            return Set.of(issuerUri);
+        }
+        String tenantId = matcher.group();
+        // Set.copyOf (no Set.of) porque issuerUri suele coincidir con una de las dos formas.
+        return Set.copyOf(List.of(
+                issuerUri,
+                "https://sts.windows.net/" + tenantId + "/",
+                "https://login.microsoftonline.com/" + tenantId + "/v2.0"));
     }
 
     private JwtAuthenticationConverter jwtAuthenticationConverter() {

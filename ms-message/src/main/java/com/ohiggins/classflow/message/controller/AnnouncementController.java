@@ -2,6 +2,7 @@ package com.ohiggins.classflow.message.controller;
 
 import com.ohiggins.classflow.message.dto.AnnouncementDTO;
 import com.ohiggins.classflow.message.dto.AnnouncementRequestDTO;
+import com.ohiggins.classflow.message.security.AuthenticatedUser;
 import com.ohiggins.classflow.message.service.AnnouncementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -75,6 +77,12 @@ public class AnnouncementController {
         @ApiResponse(responseCode = "400", description = "Datos inválidos")
     })
     public ResponseEntity<AnnouncementDTO> create(@Valid @RequestBody AnnouncementRequestDTO request) {
+        // El autor es siempre el usuario autenticado: no se puede publicar a nombre de otro.
+        if (SecurityContextHolder.getContext().getAuthentication() != null
+                && SecurityContextHolder.getContext().getAuthentication().getPrincipal() instanceof AuthenticatedUser user
+                && !user.isAdmin()) {
+            request.setSenderId(user.id());
+        }
         return new ResponseEntity<>(announcementService.create(request), HttpStatus.CREATED);
     }
 

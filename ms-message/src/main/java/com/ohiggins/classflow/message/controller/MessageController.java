@@ -2,6 +2,7 @@ package com.ohiggins.classflow.message.controller;
 
 import com.ohiggins.classflow.message.dto.MessageDTO;
 import com.ohiggins.classflow.message.dto.MessageRequestDTO;
+import com.ohiggins.classflow.message.security.AuthenticatedUser;
 import com.ohiggins.classflow.message.service.MessageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,8 +12,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Expone los endpoints REST para mensajes privados entre usuarios.
@@ -89,6 +94,8 @@ public class MessageController {
         @ApiResponse(responseCode = "400", description = "Datos inválidos")
     })
     public ResponseEntity<MessageDTO> send(@Valid @RequestBody MessageRequestDTO request) {
+        // El remitente es siempre el usuario autenticado: no se puede enviar a nombre de otro.
+        currentUser().filter(user -> !user.isAdmin()).ifPresent(user -> request.setSenderId(user.id()));
         return new ResponseEntity<>(messageService.send(request), HttpStatus.CREATED);
     }
 
@@ -105,6 +112,7 @@ public class MessageController {
         @ApiResponse(responseCode = "404", description = "Mensaje no encontrado")
     })
     public ResponseEntity<MessageDTO> markAsRead(@PathVariable Long id) {
+        requireParticipant(id, false);
         return ResponseEntity.ok(messageService.markAsRead(id));
     }
 
@@ -121,7 +129,31 @@ public class MessageController {
         @ApiResponse(responseCode = "404", description = "Mensaje no encontrado")
     })
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+        requireParticipant(id, true);
         messageService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Solo el receptor (o tambien el emisor, si senderAllowed) o un administrador pueden
+     * operar sobre un mensaje. SecurityConfig garantiza un usuario autenticado; sin el
+     * (tests de controlador sin filtros) no hay a quien comparar.
+     */
+    private void requireParticipant(Long messageId, boolean senderAllowed) {
+        currentUser().filter(user -> !user.isAdmin()).ifPresent(user -> {
+            MessageDTO message = messageService.findById(messageId);
+            boolean isReceiver = user.id().equals(message.getReceiverId());
+            boolean isSender = senderAllowed && user.id().equals(message.getSenderId());
+            if (!isReceiver && !isSender) {
+                throw new AccessDeniedException("No puedes modificar un mensaje de otro usuario.");
+            }
+        });
+    }
+
+    private Optional<AuthenticatedUser> currentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user
+                ? Optional.of(user)
+                : Optional.empty();
     }
 }

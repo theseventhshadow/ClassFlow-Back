@@ -84,7 +84,19 @@ public class MessageService {
         Message saved = messageRepository.save(message);
         return convertToDTO(saved);
     }
-    
+
+    /**
+     * Obtiene un mensaje por su identificador.
+     *
+     * @param id identificador del mensaje.
+     * @return mensaje convertido a DTO.
+     */
+    public MessageDTO findById(Long id) {
+        return messageRepository.findById(id)
+                .map(this::convertToDTO)
+                .orElseThrow(() -> new RuntimeException("Message not found"));
+    }
+
     /**
      * Marca un mensaje como leido.
      *
